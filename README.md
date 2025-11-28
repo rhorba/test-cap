@@ -1,144 +1,213 @@
 # 🚗 Renault Garage Management Service
 
-Microservice de gestion des garages, véhicules et accessoires pour le réseau Renault.
+Microservice de gestion des garages, véhicules et accessoires pour le réseau Renault, avec architecture hexagonale et système d'événements Kafka.
 
 ## 📋 Table des matières
 
-- [Contexte et Objectifs](#contexte-et-objectifs)
-- [Architecture](#architecture)
-- [Prérequis](#prérequis)
-- [Installation et Démarrage](#installation-et-démarrage)
-- [API Endpoints](#api-endpoints)
-- [Modèle de Données](#modèle-de-données)
-- [Tests](#tests)
-- [Documentation API](#documentation-api)
-- [Contraintes Métiers](#contraintes-métiers)
-- [Système d'Événements](#système-dévénements)
-- [Gestion des Erreurs](#gestion-des-erreurs)
+- [Vue d'ensemble](#-vue-densemble)
+- [Architecture](#-architecture)
+- [Démarrage rapide](#-démarrage-rapide)
+- [Documentation API](#-documentation-api)
+- [Modèle de données](#-modèle-de-données)
+- [Système d'événements Kafka](#-système-dévénements-kafka)
+- [Tests](#-tests)
+- [Configuration](#-configuration)
+- [Contraintes métiers](#-contraintes-métiers)
+- [Monitoring](#-monitoring)
+- [Évolutions futures](#-évolutions-futures)
 
-## 🎯 Contexte et Objectifs
+---
 
-Renault souhaite développer un microservice pour gérer les informations relatives aux garages affiliés à son réseau. Ce système doit permettre :
+## 🎯 Vue d'ensemble
 
-### Fonctionnalités Principales
+### Contexte
 
-1. **Gestion des Garages**
-   - Création, modification et suppression de garages
-   - Récupération d'un garage spécifique par ID
-   - Liste paginée avec tri (par nom, ville, etc.)
+Renault souhaite développer un microservice pour gérer les informations relatives aux garages affiliés à son réseau avec une architecture moderne, scalable et event-driven.
 
-2. **Gestion des Véhicules**
-   - Ajout, modification et suppression de véhicules
-   - Lister les véhicules d'un garage
-   - Lister tous les véhicules d'un modèle donné
+### Fonctionnalités principales
 
-3. **Gestion des Accessoires**
-   - Ajout, modification et suppression d'accessoires
-   - Lister les accessoires d'un véhicule
+✅ **Gestion des garages** - CRUD complet avec pagination et tri  
+✅ **Gestion des véhicules** - Association aux garages et modèles  
+✅ **Gestion des accessoires** - Équipements des véhicules  
+✅ **Système d'événements Kafka** - Communication asynchrone event-driven  
+✅ **Recherches avancées** - Par type de véhicule, disponibilité, etc.  
+✅ **Validation métier** - Capacité maximale, contraintes de données  
+✅ **API REST** - Documentation Swagger/OpenAPI interactive
 
-4. **Recherches Avancées**
-   - Rechercher des garages par type de véhicule
-   - Rechercher par disponibilité d'accessoires
+### Stack technique
+
+- **Backend**: Java 17, Spring Boot 3.2.0
+- **Base de données**: PostgreSQL 15
+- **Messaging**: Apache Kafka 7.5.0 + Zookeeper
+- **Architecture**: Hexagonale (Ports & Adapters) + DDD
+- **Testing**: JUnit 5, Mockito, Testcontainers
+- **Conteneurisation**: Docker + Docker Compose
+- **Documentation**: Swagger/OpenAPI 3.0
+
+---
 
 ## 🏗️ Architecture
 
-### Architecture Hexagonale (Ports & Adapters)
+### Architecture hexagonale (Ports & Adapters)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    REST API Layer                        │
-│              (Controllers, Exception Handlers)            │
+│         Controllers + Exception Handlers                 │
 └─────────────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────────────┐
 │                  Application Layer                       │
-│         (Services, DTOs, Mappers, Use Cases)            │
+│         Services, DTOs, Mappers, Use Cases              │
 └─────────────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────────────┐
 │                    Domain Layer                          │
-│     (Entities, Value Objects, Domain Services)          │
-│            (Business Logic & Rules)                      │
+│     Entities, Value Objects, Business Logic             │
 └─────────────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────────────┐
 │              Infrastructure Layer                        │
-│    (JPA Repositories, Database Adapters, Config)        │
+│    JPA Repositories, Kafka Adapters, Config             │
 └─────────────────────────────────────────────────────────┘
                           ↓
-┌─────────────────────────────────────────────────────────┐
-│                    PostgreSQL                            │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────┬──────────────────────────────────┐
+│     PostgreSQL       │         Apache Kafka             │
+└──────────────────────┴──────────────────────────────────┘
 ```
 
-### Principes de Design
+### Système d'événements
+
+```
+VehiculeService → KafkaDomainEventPublisher → Kafka Broker
+                                                    ↓
+                                            Topic: vehicule.created
+                                                    ↓
+                                          VehiculeKafkaConsumer
+                                                    ↓
+                        ┌───────────────────────────┼────────────────────┐
+                        │                           │                    │
+                   Notifications              Statistiques          Indexation
+                   (Email/SMS)               (Métriques)         (Elasticsearch)
+                        │                           │                    │
+                 Synchronisation                 Logs                Analytics
+                 (Systèmes externes)           (Audit)              (Reporting)
+```
+
+### Principes de design
 
 - **Domain-Driven Design (DDD)**: Modélisation centrée sur le domaine métier
-- **Clean Architecture**: Indépendance des frameworks et de l'infrastructure
+- **Clean Architecture**: Indépendance des frameworks et infrastructure
+- **Event-Driven Architecture**: Communication asynchrone via Kafka
 - **SOLID Principles**: Code maintenable et extensible
-- **Testabilité**: Tests unitaires et d'intégration complets
+- **Test-Driven Development**: Couverture de tests complète
 
-## 🔧 Prérequis
+---
+
+## 🚀 Démarrage rapide
+
+### Prérequis
 
 - **Java 17** ou supérieur
 - **Maven 3.8+**
-- **Docker** et **Docker Compose** (pour PostgreSQL)
+- **Docker** et **Docker Compose**
 - **Git**
 
-## 🚀 Installation et Démarrage
+### Installation en 3 étapes
 
-### 1. Cloner le repository
+#### 1. Cloner le repository
 
 ```bash
-git clone https://github.com/renault/garage-service.git
-cd garage-service
+git clone https://github.com/rhorba/test-cap.git
+cd test-cap
 ```
 
-### 2. Démarrer PostgreSQL avec Docker
+#### 2. Démarrer l'infrastructure complète avec Docker
 
 ```bash
-docker-compose up -d
+docker-compose up --build -d
 ```
 
-Vérifier que PostgreSQL est bien démarré :
+Cette commande démarre automatiquement :
+- ✅ **PostgreSQL** (port 5432) - Base de données principale
+- ✅ **PgAdmin** (port 5050) - Interface de gestion PostgreSQL
+- ✅ **Zookeeper** (port 2181) - Coordination Kafka
+- ✅ **Kafka** (ports 9092-9093) - Message broker
+- ✅ **Kafka UI** (port 8090) - Interface de monitoring Kafka
+- ✅ **Application Spring Boot** (port 8080) - Microservice
+
+#### 3. Vérifier le démarrage
 
 ```bash
-docker ps
-```
+# Vérifier l'état des conteneurs
+docker-compose ps
 
-### 3. Compiler le projet
-
-```bash
-mvn clean install
-```
-
-### 4. Lancer l'application
-
-```bash
-mvn spring-boot:run
-```
-
-Ou créer un JAR et l'exécuter :
-
-```bash
-mvn clean package
-java -jar target/garage-service-1.0.0.jar
-```
-
-### 5. Vérifier que l'application est démarrée
-
-```bash
+# Tester l'API
 curl http://localhost:8080/actuator/health
-```
 
-Réponse attendue :
-```json
+# Réponse attendue
 {"status":"UP"}
 ```
 
-## 📡 API Endpoints
+### Accès aux interfaces
 
-### Gestion des Garages
+| Service | URL | Identifiants |
+|---------|-----|--------------|
+| **API REST** | http://localhost:8080 | - |
+| **Swagger UI** | http://localhost:8080/swagger-ui.html | - |
+| **Kafka UI** | http://localhost:8090 | - |
+| **PgAdmin** | http://localhost:5050 | admin@renault.fr / admin123 |
+
+### Exemple rapide : Créer un garage
+
+```bash
+curl -X POST http://localhost:8080/api/v1/garages \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Garage Renault Paris",
+    "address": {
+      "rue": "123 Avenue des Champs",
+      "ville": "Paris",
+      "codePostal": "75008",
+      "pays": "France"
+    },
+    "telephone": "+33123456789",
+    "email": "paris@renault.fr",
+    "horairesOuverture": {
+      "MONDAY": [{"startTime": "08:00", "endTime": "18:00"}],
+      "TUESDAY": [{"startTime": "08:00", "endTime": "18:00"}],
+      "WEDNESDAY": [{"startTime": "08:00", "endTime": "18:00"}],
+      "THURSDAY": [{"startTime": "08:00", "endTime": "18:00"}],
+      "FRIDAY": [{"startTime": "08:00", "endTime": "18:00"}]
+    }
+  }'
+```
+
+### Arrêter l'infrastructure
+
+```bash
+# Arrêter les services
+docker-compose down
+
+# Arrêter et supprimer les volumes (réinitialisation complète)
+docker-compose down -v
+```
+
+---
+
+## 📚 Documentation API
+
+### Swagger UI (Recommandé)
+
+Interface interactive pour tester l'API :
+
+```
+http://localhost:8080/swagger-ui.html
+```
+
+### Endpoints principaux
+
+#### Garages
 
 | Méthode | Endpoint | Description |
 |---------|----------|-------------|
@@ -148,256 +217,151 @@ Réponse attendue :
 | PUT | `/api/v1/garages/{id}` | Mettre à jour un garage |
 | DELETE | `/api/v1/garages/{id}` | Supprimer un garage |
 
+#### Véhicules
+
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| POST | `/api/v1/garages/{garageId}/vehicules` | Ajouter un véhicule |
+| GET | `/api/v1/garages/{garageId}/vehicules` | Lister les véhicules d'un garage |
+| GET | `/api/v1/garages/{garageId}/vehicules/{id}` | Récupérer un véhicule |
+| PUT | `/api/v1/garages/{garageId}/vehicules/{id}` | Mettre à jour un véhicule |
+| DELETE | `/api/v1/garages/{garageId}/vehicules/{id}` | Supprimer un véhicule |
+
+#### Accessoires
+
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| POST | `/api/v1/vehicules/{vehiculeId}/accessoires` | Ajouter un accessoire |
+| GET | `/api/v1/vehicules/{vehiculeId}/accessoires` | Lister les accessoires |
+| DELETE | `/api/v1/vehicules/{vehiculeId}/accessoires/{id}` | Supprimer un accessoire |
+
 ### Paramètres de pagination et tri
 
-- `page` : Numéro de page (défaut: 0)
-- `size` : Nombre d'éléments par page (défaut: 20)
-- `sortBy` : Champ de tri (défaut: name)
-- `direction` : Direction du tri (ASC ou DESC)
+| Paramètre | Description | Défaut |
+|-----------|-------------|--------|
+| `page` | Numéro de page | 0 |
+| `size` | Éléments par page | 20 |
+| `sortBy` | Champ de tri | name |
+| `direction` | ASC ou DESC | ASC |
 
 **Exemple :**
 ```bash
 GET /api/v1/garages?page=0&size=10&sortBy=name&direction=ASC
 ```
 
-### Exemples de requêtes
-
-#### Créer un garage
-
-```bash
-curl -X POST http://localhost:8080/api/v1/garages \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Renault Paris Centre",
-    "address": {
-      "rue": "123 Avenue des Champs-Élysées",
-      "ville": "Paris",
-      "codePostal": "75008",
-      "pays": "France"
-    },
-    "telephone": "+33140256789",
-    "email": "paris.centre@renault.fr",
-    "horairesOuverture": {
-      "MONDAY": [
-        {"startTime": "08:00:00", "endTime": "12:00:00"},
-        {"startTime": "14:00:00", "endTime": "18:00:00"}
-      ],
-      "TUESDAY": [
-        {"startTime": "08:00:00", "endTime": "18:00:00"}
-      ]
-    }
-  }'
-```
-
-#### Récupérer un garage
-
-```bash
-curl -X GET http://localhost:8080/api/v1/garages/{garage_id}
-```
-
-#### Mettre à jour un garage
-
-```bash
-curl -X PUT http://localhost:8080/api/v1/garages/{garage_id} \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Renault Paris Centre - Nouveau Nom",
-    "telephone": "+33140259999"
-  }'
-```
-
-## 💾 Modèle de Données
-
-### Entités Principales
-
-#### Garage
-```java
-{
-  "id": "UUID",
-  "name": "String (required)",
-  "address": {
-    "rue": "String (required)",
-    "ville": "String (required)",
-    "codePostal": "String (required)",
-    "pays": "String (required)"
-  },
-  "telephone": "String (required)",
-  "email": "String (required, unique)",
-  "horairesOuverture": {
-    "MONDAY": [
-      {"startTime": "LocalTime", "endTime": "LocalTime"}
-    ]
-  },
-  "nombreVehicules": "int (read-only)",
-  "capaciteRestante": "int (read-only)",
-  "createdAt": "LocalDateTime",
-  "updatedAt": "LocalDateTime"
-}
-```
-
-#### Vehicule
-```java
-{
-  "id": "UUID",
-  "garageId": "UUID",
-  "modeleId": "UUID",
-  "brand": "String (required)",
-  "anneeFabrication": "int (required)",
-  "typeCarburant": "ESSENCE | DIESEL | ELECTRIQUE | HYBRIDE | GPL",
-  "createdAt": "LocalDateTime",
-  "updatedAt": "LocalDateTime"
-}
-```
-
-#### Accessoire
-```java
-{
-  "id": "UUID",
-  "vehiculeId": "UUID",
-  "nom": "String (required)",
-  "description": "String",
-  "prix": "BigDecimal (required, >= 0)",
-  "type": "INTERIEUR | EXTERIEUR | ELECTRONIQUE | SECURITE | CONFORT",
-  "createdAt": "LocalDateTime"
-}
-```
-
-### Schéma de Base de Données
-
-```sql
-garages (id, name, rue, ville, code_postal, pays, telephone, email, created_at, updated_at)
-  └── garage_horaires (garage_id, day_of_week, horaires)
-  └── vehicules (id, garage_id, modele_id, brand, annee_fabrication, type_carburant, created_at, updated_at)
-      └── accessoires (id, vehicule_id, nom, description, prix, type, created_at)
-
-modeles_vehicules (id, nom_modele, brand, description, specifications)
-```
-
-## 🧪 Tests
-
-### Exécuter tous les tests
-
-```bash
-mvn test
-```
-
-### Tests unitaires uniquement
-
-```bash
-mvn test -Dtest=*Test
-```
-
-### Tests d'intégration
-
-```bash
-mvn test -Dtest=*IntegrationTest
-```
-
-### Couverture de code
-
-```bash
-mvn clean test jacoco:report
-```
-
-Le rapport sera généré dans `target/site/jacoco/index.html`
-
-### Structure des tests
-
-```
-src/test/java/
-├── domain/
-│   ├── GarageTest.java
-│   └── VehiculeTest.java
-├── application/
-│   └── GarageServiceTest.java
-└── infrastructure/
-    └── GarageControllerIntegrationTest.java
-```
-
-## 📚 Documentation API
-
-### Swagger UI
-
-L'application expose une documentation interactive Swagger UI :
-
-```
-http://localhost:8080/swagger-ui.html
-```
-
 ### OpenAPI Specification
 
-La spécification OpenAPI JSON est disponible à :
-
+Spécification JSON disponible à :
 ```
 http://localhost:8080/api-docs
 ```
 
-## ⚠️ Contraintes Métiers
+---
 
-### 1. Capacité Maximale des Garages
+## 💾 Modèle de données
 
-Chaque garage peut stocker **maximum 50 véhicules**.
+### Entités principales
 
-**Validation :**
-- Au niveau applicatif (Domain Layer)
-- Au niveau base de données (Trigger PostgreSQL)
-
-**Erreur retournée :**
+#### Garage
 ```json
 {
-  "code": "CAPACITY_EXCEEDED",
-  "message": "Le garage a atteint sa capacité maximale de 50 véhicules",
-  "timestamp": "2024-11-28T10:30:00"
+  "id": "UUID",
+  "name": "string (required)",
+  "address": {
+    "rue": "string (required)",
+    "ville": "string (required)",
+    "codePostal": "string (required)",
+    "pays": "string (required)"
+  },
+  "telephone": "string (required, format: +33XXXXXXXXX)",
+  "email": "string (required, unique)",
+  "horairesOuverture": {
+    "MONDAY": [
+      {"startTime": "HH:mm", "endTime": "HH:mm"}
+    ]
+  },
+  "nombreVehicules": "int (read-only)",
+  "capaciteRestante": "int (read-only, max: 50)",
+  "createdAt": "timestamp",
+  "updatedAt": "timestamp"
 }
 ```
 
-### 2. Partage des Modèles de Véhicules
-
-Un même modèle de véhicule peut être stocké dans plusieurs garages via la table `modeles_vehicules`.
-
-### 3. Informations Obligatoires
-
-#### Garage
-- ✅ name
-- ✅ address (rue, ville, codePostal, pays)
-- ✅ telephone (format: `+33XXXXXXXXX`)
-- ✅ email (format valide et unique)
-- ✅ horairesOuverture (Map<DayOfWeek, List<OpeningTime>>)
-
-#### Véhicule
-- ✅ brand
-- ✅ anneeFabrication (1900 ≤ année ≤ année actuelle + 1)
-- ✅ typeCarburant (ESSENCE, DIESEL, ELECTRIQUE, HYBRIDE, GPL)
+#### Vehicule
+```json
+{
+  "id": "UUID",
+  "garageId": "UUID (required)",
+  "modeleId": "UUID (required)",
+  "brand": "string (required)",
+  "anneeFabrication": "int (1900-2026)",
+  "typeCarburant": "ESSENCE | DIESEL | ELECTRIQUE | HYBRIDE | GPL",
+  "nombreAccessoires": "int (read-only)",
+  "createdAt": "timestamp",
+  "updatedAt": "timestamp"
+}
+```
 
 #### Accessoire
-- ✅ nom
-- ✅ description
-- ✅ prix (≥ 0)
-- ✅ type (INTERIEUR, EXTERIEUR, ELECTRONIQUE, SECURITE, CONFORT)
-
-## 📡 Système d'Événements
-
-Le service implémente un **système de publication/consommation d'événements** basé sur le pattern **Publisher-Subscriber** pour découpler la logique métier des traitements annexes.
-
-### Architecture des Événements
-
-```
-VehiculeService → DomainEventPublisher → Spring Events → VehiculeEventListener
-                                                              ↓
-                                              ┌───────────────┴────────────────┐
-                                              │                                │
-                                         Notifications                   Statistiques
-                                         Emails/SMS                    Mise à jour
-                                              │                                │
-                                    Synchronisation                     Indexation
-                                    Système externe                    Elasticsearch
+```json
+{
+  "id": "UUID",
+  "vehiculeId": "UUID (required)",
+  "nom": "string (required)",
+  "description": "string",
+  "prix": "decimal (>= 0)",
+  "type": "INTERIEUR | EXTERIEUR | ELECTRONIQUE | SECURITE | CONFORT",
+  "createdAt": "timestamp"
+}
 ```
 
-### Événements Disponibles
+### Schéma de base de données
 
-#### `VehiculeCreatedEvent`
+```sql
+garages
+├── id (UUID, PK)
+├── name (VARCHAR)
+├── rue, ville, code_postal, pays
+├── telephone, email (UNIQUE)
+├── created_at, updated_at
+└── garage_horaires (JSON: day_of_week → horaires)
 
-Publié automatiquement lors de la création d'un véhicule.
+modeles_vehicules (catalogue partagé)
+├── id (UUID, PK)
+├── nom_modele (VARCHAR)
+├── brand (VARCHAR)
+└── description (TEXT)
+
+vehicules
+├── id (UUID, PK)
+├── garage_id (UUID, FK → garages)
+├── modele_id (UUID, FK → modeles_vehicules)
+├── brand (VARCHAR)
+├── annee_fabrication (INT)
+├── type_carburant (ENUM)
+└── created_at, updated_at
+
+accessoires
+├── id (UUID, PK)
+├── vehicule_id (UUID, FK → vehicules)
+├── nom, description (VARCHAR, TEXT)
+├── prix (DECIMAL)
+├── type (ENUM)
+└── created_at
+```
+
+**Contraintes :**
+- Un garage peut contenir **maximum 50 véhicules**
+- Un modèle de véhicule peut être présent dans plusieurs garages
+- Les emails de garage sont uniques dans le système
+
+---
+
+## 📡 Système d'événements Kafka
+
+### Architecture du système
+
+Le microservice implémente un système **event-driven** avec Apache Kafka pour découpler la logique métier des traitements annexes.
 
 **Contenu de l'événement :**
 ```java
@@ -413,77 +377,318 @@ Publié automatiquement lors de la création d'un véhicule.
 
 ### Consumer (Listener)
 
-Le `VehiculeEventListener` traite les événements de manière **asynchrone** :
-
-- ✅ **Notifications** : Envoi d'emails/SMS
-- ✅ **Statistiques** : Mise à jour des métriques
-- ✅ **Synchronisation** : Mise à jour de systèmes externes
-- ✅ **Indexation** : Elasticsearch pour la recherche
-
-### Configuration
-
-**Pool de threads asynchrone :**
-- Core Pool Size: **5 threads**
-- Max Pool Size: **10 threads**
-- Queue Capacity: **100 événements**
-
-### Test du Système
-
-#### Via Script PowerShell
-```powershell
-.\test-events.ps1
-```
-
-#### Via cURL
-```bash
-# 1. Créer un véhicule (déclenche l'événement)
-curl -X POST http://localhost:8080/api/v1/garages/{garageId}/vehicules \
-  -H "Content-Type: application/json" \
-  -d '{
-    "modeleId": "uuid",
-    "brand": "Renault Zoe",
-    "anneeFabrication": 2024,
-    "typeCarburant": "ELECTRIQUE"
-  }'
-
-# 2. Observer les logs
-# [INFO] 📢 Publication d'un événement domaine: VehiculeCreatedEvent
-# [INFO] 🚗 [CONSUMER] Réception d'un événement VehiculeCreatedEvent
-# [INFO] ⚙️  Traitement de l'événement en cours...
-# [INFO] ✅ Événement traité avec succès
-```
-
-### Extensibilité
-
-Pour ajouter un nouveau consumer :
-
-```java
-@Component
-public class MyCustomListener {
-    
-    @Async
-    @EventListener
-    public void onVehiculeCreated(VehiculeCreatedEvent event) {
-        // Votre logique de traitement
-    }
+**Structure :**
+```json
+{
+  "vehiculeId": "UUID",
+  "garageId": "UUID",
+  "brand": "string",
+  "anneeFabrication": 2024,
+  "typeCarburant": "ESSENCE|DIESEL|ELECTRIQUE|HYBRIDE|GPL",
+  "occurredOn": "2025-11-28T10:30:00"
 }
 ```
 
-**📚 Documentation détaillée :** Voir [EVENTS.md](EVENTS.md)
+### Consumer (VehiculeKafkaConsumer)
 
-## 🔐 Gestion des Erreurs
+Le consumer traite les événements de manière **asynchrone** et déclenche automatiquement :
 
-### Codes d'erreur
+- ✅ **Notifications** - Envoi d'emails/SMS aux parties concernées
+- ✅ **Statistiques** - Mise à jour des métriques et analytics
+- ✅ **Synchronisation** - Mise à jour des systèmes externes
+- ✅ **Indexation** - Indexation dans Elasticsearch pour la recherche
 
-| Code | Description | HTTP Status |
-|------|-------------|-------------|
-| `GARAGE_NOT_FOUND` | Garage introuvable | 404 |
-| `CAPACITY_EXCEEDED` | Capacité du garage dépassée | 400 |
-| `VALIDATION_ERROR` | Erreur de validation | 400 |
-| `INVALID_ARGUMENT` | Argument invalide | 400 |
-| `INTERNAL_SERVER_ERROR` | Erreur serveur | 500 |
+### Configuration Kafka
 
-### Format des réponses d'erreur
+**Topic:** `vehicule.created`  
+**Partitions:** 3  
+**Replication factor:** 1  
+**Consumer group:** `garage-service-group`
+
+**Bootstrap servers:**
+- Docker interne: `kafka:9093`
+- Localhost externe: `localhost:9092`
+
+### Tester le système d'événements
+
+#### 1. Créer un véhicule pour déclencher l'événement
+
+```bash
+curl -X POST http://localhost:8080/api/v1/garages/{garageId}/vehicules \
+  -H "Content-Type: application/json" \
+  -d '{
+    "modeleId": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12",
+    "brand": "Renault",
+    "anneeFabrication": 2024,
+    "typeCarburant": "ESSENCE"
+  }'
+```
+
+#### 2. Observer les logs de l'application
+
+```bash
+docker-compose logs -f app
+```
+
+**Logs attendus :**
+```
+[INFO] 📢 [KAFKA] Événement publié avec succès sur le topic 'vehicule.created' - partition: 2, offset: 0
+[INFO] 🚗 [KAFKA CONSUMER] Réception d'un événement VehiculeCreatedEvent
+[INFO]    📍 Partition: 2, Offset: 0
+[INFO]    🚙 Véhicule ID: 8fe483cf-ca44-4a74-bab5-d377c7f83d55
+[INFO]    🏢 Garage ID: 967c9022-0ff4-4157-98d3-3f9f5a1f41ba
+[INFO]    🔧 Marque: Renault
+[INFO]    📅 Année: 2024
+[INFO]    ⛽ Carburant: ESSENCE
+[INFO] ⚙️  [KAFKA] Traitement de l'événement en cours...
+[INFO] 📧 [Notification] Envoi d'email pour le nouveau véhicule
+[INFO] 📊 [Statistiques] Mise à jour: +1 véhicule Renault (ESSENCE)
+[INFO] 🔄 [Synchronisation] Mise à jour du système externe
+[INFO] 🔍 [Indexation] Indexation du véhicule dans Elasticsearch
+[INFO] ✅ [KAFKA] Événement traité avec succès
+```
+
+#### 3. Consulter Kafka UI
+
+Ouvrir http://localhost:8090 pour visualiser :
+- Les topics Kafka
+- Les messages publiés
+- Les consumer groups
+- Les offsets
+
+---
+
+## 🧪 Tests
+
+### Exécuter tous les tests
+
+```bash
+mvn test
+```
+
+### Tests unitaires
+
+```bash
+mvn test -Dtest=*Test
+```
+
+### Tests d'intégration
+
+```bash
+mvn test -Dtest=*IntegrationTest
+```
+
+### Couverture de code (JaCoCo)
+
+```bash
+mvn clean test jacoco:report
+```
+
+Rapport disponible : `target/site/jacoco/index.html`
+
+### Structure des tests
+
+```
+src/test/java/com/renault/garage/
+├── domain/
+│   ├── model/
+│   │   ├── GarageTest.java
+│   │   ├── VehiculeTest.java
+│   │   └── AccessoireTest.java
+│   └── service/
+│       └── GarageDomainServiceTest.java
+├── application/
+│   └── service/
+│       ├── GarageServiceTest.java
+│       └── VehiculeServiceTest.java
+└── infrastructure/
+    ├── rest/
+    │   └── GarageControllerIntegrationTest.java
+    └── event/
+        └── VehiculeKafkaIntegrationTest.java
+```
+
+---
+
+## ⚙️ Configuration
+
+### Profils Spring Boot
+
+| Profil | Description | Usage |
+|--------|-------------|-------|
+| `default` | PostgreSQL + Kafka | `docker-compose up` |
+| `test` | H2 in-memory, Kafka désactivé | Tests automatiques |
+
+### Variables d'environnement
+
+| Variable | Description | Défaut |
+|----------|-------------|--------|
+| `SPRING_DATASOURCE_URL` | URL de la base de données | `jdbc:postgresql://localhost:5432/renault_garage_db` |
+| `SPRING_KAFKA_BOOTSTRAP_SERVERS` | Serveurs Kafka | `localhost:9092` |
+| `SPRING_JPA_HIBERNATE_DDL_AUTO` | Stratégie DDL | `update` |
+
+### Configuration Docker Compose
+
+```yaml
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/renault_garage_db
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9093
+    depends_on:
+      - postgres
+      - kafka
+```
+
+---
+
+## ⚠️ Contraintes métiers
+
+### 1. Capacité maximale des garages
+
+**Règle:** Chaque garage peut stocker **maximum 50 véhicules**.
+
+**Validation:**
+- ✅ Niveau application (Domain Layer)
+- ✅ Niveau base de données (constraint PostgreSQL)
+
+**Erreur retournée (HTTP 400):**
+```json
+{
+  "code": "CAPACITY_EXCEEDED",
+  "message": "Le garage a atteint sa capacité maximale de 50 véhicules",
+  "timestamp": "2025-11-28T10:30:00"
+}
+```
+
+### 2. Partage des modèles de véhicules
+
+Un même modèle de véhicule peut être présent dans plusieurs garages via la table `modeles_vehicules` (catalogue partagé).
+
+### 3. Validations des données
+
+#### Garage
+- ✅ **name**: 3-255 caractères
+- ✅ **telephone**: Format `+33XXXXXXXXX`
+- ✅ **email**: Format valide et unique dans le système
+- ✅ **horairesOuverture**: Au moins un jour avec horaires valides
+
+#### Véhicule
+- ✅ **brand**: Non vide, max 100 caractères
+- ✅ **anneeFabrication**: 1900 ≤ année ≤ 2026
+- ✅ **typeCarburant**: Valeur de l'enum
+
+#### Accessoire
+- ✅ **nom**: Non vide
+- ✅ **prix**: ≥ 0
+- ✅ **type**: Valeur de l'enum
+
+### Format des erreurs
+
+**Erreur de validation (HTTP 400):**
+```json
+{
+  "code": "VALIDATION_ERROR",
+  "message": "Erreur de validation des données",
+  "errors": {
+    "email": "Format d'email invalide",
+    "telephone": "Format de téléphone invalide"
+  },
+  "timestamp": "2025-11-28T10:30:00"
+}
+```
+
+**Erreur métier (HTTP 404):**
+```json
+{
+  "code": "GARAGE_NOT_FOUND",
+  "message": "Aucun garage trouvé avec l'ID: 123e4567-e89b-12d3-a456-426614174000",
+  "timestamp": "2025-11-28T10:30:00"
+}
+```
+
+---
+
+## 🔍 Monitoring
+
+### Spring Boot Actuator
+
+Endpoints disponibles :
+
+| Endpoint | Description |
+|----------|-------------|
+| `/actuator/health` | État de santé de l'application |
+| `/actuator/info` | Informations sur l'application |
+| `/actuator/metrics` | Métriques de performance |
+
+**Exemple:**
+```bash
+curl http://localhost:8080/actuator/health
+
+# Réponse
+{
+  "status": "UP",
+  "components": {
+    "db": {"status": "UP"},
+    "kafka": {"status": "UP"},
+    "diskSpace": {"status": "UP"}
+  }
+}
+```
+
+### Kafka UI
+
+Interface de monitoring Kafka : http://localhost:8090
+
+Permet de visualiser :
+- Topics et partitions
+- Messages en temps réel
+- Consumer groups et lag
+- Cluster configuration
+
+---
+
+## 📦 Structure du projet
+
+```
+renault-garage-service/
+├── src/
+│   ├── main/
+│   │   ├── java/com/renault/garage/
+│   │   │   ├── domain/
+│   │   │   │   ├── model/              # Entités, Value Objects
+│   │   │   │   ├── repository/         # Interfaces repository (ports)
+│   │   │   │   ├── service/            # Services domaine
+│   │   │   │   └── exception/          # Exceptions métier
+│   │   │   ├── application/
+│   │   │   │   ├── service/            # Use cases, orchestration
+│   │   │   │   ├── dto/                # Request/Response DTOs
+│   │   │   │   └── mapper/             # Mappers Domain ↔ DTO
+│   │   │   ├── infrastructure/
+│   │   │   │   ├── persistence/
+│   │   │   │   │   ├── jpa/           # Entités JPA
+│   │   │   │   │   └── adapter/       # Implémentations repositories
+│   │   │   │   ├── rest/              # Controllers REST
+│   │   │   │   ├── event/             # Kafka publisher/consumer
+│   │   │   │   └── config/            # Configuration Spring
+│   │   │   └── GarageMicroserviceApplication.java
+│   │   └── resources/
+│   │       ├── application.yml         # Configuration principale
+│   │       ├── application-test.yml    # Configuration tests
+│   │       └── db/migration/           # Scripts Flyway (si activé)
+│   └── test/                           # Tests unitaires et d'intégration
+├── Dockerfile                          # Image Docker multi-stage
+├── docker-compose.yml                  # Stack complète (app + infra)
+├── pom.xml                             # Dépendances Maven
+└── README.md                           # Ce fichier
+```
+
+---
+
+## 🚀 Évolutions futures
 
 ```json
 {
@@ -597,5 +802,6 @@ Pour toute question ou problème, contactez :
 ## 📄 License
 
 Copyright © 2024 Renault. Tous droits réservés.
-#   t e s t - c a p  
+#   t e s t - c a p 
+ 
  
