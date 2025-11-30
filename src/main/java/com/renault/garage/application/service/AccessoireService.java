@@ -8,6 +8,7 @@ import com.renault.garage.domain.model.Accessoire;
 import com.renault.garage.domain.model.Vehicule;
 import com.renault.garage.domain.repository.AccessoireRepository;
 import com.renault.garage.domain.repository.VehiculeRepository;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
@@ -15,6 +16,7 @@ import java.util.UUID;
 /**
  * Application Service - Gestion des accessoires d'un véhicule
  */
+@Service
 public class AccessoireService {
 
     private final AccessoireRepository accessoireRepository;

@@ -7,10 +7,28 @@ Param(
 
 function Invoke-Api {
   param([string]$Method, [string]$Url, [string]$Body)
-  if ($Body) {
-    return curl -Method $Method -Uri $Url -ContentType 'application/json' -Body $Body
-  } else {
-    return curl -Method $Method -Uri $Url
+  $headers = @{ 'Content-Type' = 'application/json' }
+  try {
+    $resp = if ($Body) {
+      Invoke-WebRequest -Method $Method -Uri $Url -Headers $headers -Body $Body -ErrorAction Stop
+    } else {
+      Invoke-WebRequest -Method $Method -Uri $Url -Headers $headers -ErrorAction Stop
+    }
+    return [pscustomobject]@{ StatusCode = $resp.StatusCode; Content = $resp.Content; Headers = $resp.Headers }
+  }
+  catch [System.Net.WebException] {
+    $we = $_.Exception
+    $httpResp = $we.Response
+    if ($httpResp) {
+      $content = $null
+      try {
+        $sr = New-Object System.IO.StreamReader($httpResp.GetResponseStream())
+        $content = $sr.ReadToEnd(); $sr.Close()
+      } catch {}
+      return [pscustomobject]@{ StatusCode = [int]$httpResp.StatusCode; Content = $content; Headers = $httpResp.Headers }
+    } else {
+      return [pscustomobject]@{ StatusCode = $null; Content = $we.Message; Headers = $null }
+    }
   }
 }
 
@@ -211,9 +229,9 @@ if ($garagesResp.StatusCode -eq 200) {
 }
 $md += ""
 $md += "## Accessoires"
-# Create accessory on first created vehicle if available
-if ($vehicules.Count -gt 0) {
-  $firstVeh = $vehicules[0]
+# Création d'un accessoire sur le premier véhicule si disponible
+if ($null -ne $listJson -and ($listJson | Measure-Object).Count -gt 0) {
+  $firstVeh = $listJson[0]
   $createAccBody = @{ 
     nom = "GPS"
     description = "Navigation system"

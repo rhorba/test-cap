@@ -44,17 +44,6 @@ public class GarageController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
     
-    @GetMapping("/{id}")
-    @Operation(summary = "Récupérer un garage par son ID", description = "Retourne les détails complets d'un garage")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Garage trouvé"),
-        @ApiResponse(responseCode = "404", description = "Garage non trouvé")
-    })
-    public ResponseEntity<GarageResponse> getGarageById(@PathVariable UUID id) {
-        GarageResponse response = garageService.getGarageById(id);
-        return ResponseEntity.ok(response);
-    }
-    
     @GetMapping
     @Operation(summary = "Lister tous les garages avec pagination et tri", 
                description = "Retourne une liste paginée de tous les garages")
@@ -72,31 +61,6 @@ public class GarageController {
         
         GarageListResponse response = garageService.getAllGarages(pageable);
         return ResponseEntity.ok(response);
-    }
-    
-    @PutMapping("/{id}")
-    @Operation(summary = "Mettre à jour un garage", description = "Met à jour les informations d'un garage existant")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Garage mis à jour avec succès"),
-        @ApiResponse(responseCode = "404", description = "Garage non trouvé"),
-        @ApiResponse(responseCode = "400", description = "Données invalides")
-    })
-    public ResponseEntity<GarageResponse> updateGarage(
-            @PathVariable UUID id,
-            @Valid @RequestBody UpdateGarageRequest request) {
-        GarageResponse response = garageService.updateGarage(id, request);
-        return ResponseEntity.ok(response);
-    }
-    
-    @DeleteMapping("/{id}")
-    @Operation(summary = "Supprimer un garage", description = "Supprime définitivement un garage")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "204", description = "Garage supprimé avec succès"),
-        @ApiResponse(responseCode = "404", description = "Garage non trouvé")
-    })
-    public ResponseEntity<Void> deleteGarage(@PathVariable UUID id) {
-        garageService.deleteGarage(id);
-        return ResponseEntity.noContent().build();
     }
     
     @GetMapping("/search/by-ville")
@@ -130,9 +94,51 @@ public class GarageController {
         @ApiResponse(responseCode = "200", description = "Liste des garages trouvés")
     })
     public ResponseEntity<List<GarageResponse>> searchByFuelAndAccessory(
-            @RequestParam TypeCarburant typeCarburant,
+            @RequestParam String typeCarburant,
             @RequestParam String accessoireNom) {
-        List<GarageResponse> garages = garageService.searchByFuelAndAccessoryName(typeCarburant, accessoireNom);
-        return ResponseEntity.ok(garages);
+        try {
+            TypeCarburant parsed = TypeCarburant.valueOf(typeCarburant.toUpperCase());
+            List<GarageResponse> garages = garageService.searchByFuelAndAccessoryName(parsed, accessoireNom);
+            return ResponseEntity.ok(garages);
+        } catch (IllegalArgumentException ex) {
+            // typeCarburant invalide -> 400 Bad Request
+            return ResponseEntity.badRequest().build();
+        }
+    }
+    
+    @GetMapping("/{id}")
+    @Operation(summary = "Récupérer un garage par son ID", description = "Retourne les détails complets d'un garage")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Garage trouvé"),
+        @ApiResponse(responseCode = "404", description = "Garage non trouvé")
+    })
+    public ResponseEntity<GarageResponse> getGarageById(@PathVariable UUID id) {
+        GarageResponse response = garageService.getGarageById(id);
+        return ResponseEntity.ok(response);
+    }
+    
+    @PutMapping("/{id}")
+    @Operation(summary = "Mettre à jour un garage", description = "Met à jour les informations d'un garage existant")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Garage mis à jour avec succès"),
+        @ApiResponse(responseCode = "404", description = "Garage non trouvé"),
+        @ApiResponse(responseCode = "400", description = "Données invalides")
+    })
+    public ResponseEntity<GarageResponse> updateGarage(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateGarageRequest request) {
+        GarageResponse response = garageService.updateGarage(id, request);
+        return ResponseEntity.ok(response);
+    }
+    
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Supprimer un garage", description = "Supprime définitivement un garage")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "204", description = "Garage supprimé avec succès"),
+        @ApiResponse(responseCode = "404", description = "Garage non trouvé")
+    })
+    public ResponseEntity<Void> deleteGarage(@PathVariable UUID id) {
+        garageService.deleteGarage(id);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -39,11 +39,17 @@ public class VehiculeQueryController {
         @ApiResponse(responseCode = "200", description = "Liste des véhicules récupérée")
     })
     public ResponseEntity<List<VehiculeResponse>> getVehiculesByModeleId(
-            @RequestParam(name = "modeleId") UUID modeleId) {
-        List<VehiculeResponse> responses = vehiculeRepository.findByModeleId(modeleId)
-                .stream()
-                .map(vehiculeMapper::toResponse)
-                .toList();
-        return ResponseEntity.ok(responses);
+            @RequestParam(name = "modeleId") String modeleId) {
+        try {
+            UUID parsed = UUID.fromString(modeleId);
+            List<VehiculeResponse> responses = vehiculeRepository.findByModeleId(parsed)
+                    .stream()
+                    .map(vehiculeMapper::toResponse)
+                    .toList();
+            return ResponseEntity.ok(responses);
+        } catch (IllegalArgumentException ex) {
+            // UUID invalide -> 400 Bad Request au lieu de 500
+            return ResponseEntity.badRequest().build();
+        }
     }
 }
