@@ -43,8 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DirtiesContext
 @EmbeddedKafka(
     partitions = 1,
-    topics = {KafkaConfig.VEHICULE_CREATED_TOPIC},
-    brokerProperties = {"listeners=PLAINTEXT://localhost:9092", "port=9092"}
+    topics = {KafkaConfig.VEHICULE_CREATED_TOPIC}
 )
 class KafkaEventIntegrationTest {
     
@@ -59,9 +58,17 @@ class KafkaEventIntegrationTest {
     
     private UUID garageId;
     
+    @Autowired
+    private com.renault.garage.domain.repository.GarageRepository garageRepository;
+    
     @BeforeEach
     void setUp() {
-        garageId = UUID.fromString("550e8400-e29b-41d4-a716-446655440001");
+        // Créer un garage réel en base de test (H2)
+        var addr = new com.renault.garage.domain.model.Address("1 Rue Test","Rabat","10000","MA");
+        var horaires = new java.util.EnumMap<java.time.DayOfWeek, java.util.List<com.renault.garage.domain.model.OpeningTime>>(java.time.DayOfWeek.class);
+        horaires.put(java.time.DayOfWeek.MONDAY, java.util.List.of(new com.renault.garage.domain.model.OpeningTime(java.time.LocalTime.of(8,0), java.time.LocalTime.of(18,0))));
+        var garage = new com.renault.garage.domain.model.Garage("Garage Test IT-Kafka", addr, "+212600000001", "garage.kafka@renault.ma", horaires);
+        garageId = garageRepository.save(garage).getId();
         
         // Configuration du consumer de test
         Map<String, Object> configs = new HashMap<>();

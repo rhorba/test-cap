@@ -4,6 +4,7 @@ import com.renault.garage.domain.event.DomainEventPublisher;
 import com.renault.garage.infrastructure.config.KafkaConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Component;
@@ -20,9 +21,12 @@ public class KafkaDomainEventPublisher implements DomainEventPublisher {
     private static final Logger logger = LoggerFactory.getLogger(KafkaDomainEventPublisher.class);
     
     private final KafkaTemplate<String, Object> kafkaTemplate;
-    
-    public KafkaDomainEventPublisher(KafkaTemplate<String, Object> kafkaTemplate) {
+    private final ApplicationEventPublisher applicationEventPublisher;
+
+    public KafkaDomainEventPublisher(KafkaTemplate<String, Object> kafkaTemplate,
+                                     ApplicationEventPublisher applicationEventPublisher) {
         this.kafkaTemplate = kafkaTemplate;
+        this.applicationEventPublisher = applicationEventPublisher;
     }
     
     @Override
@@ -33,6 +37,14 @@ public class KafkaDomainEventPublisher implements DomainEventPublisher {
         logger.info("📢 [KAFKA PUBLISHER] Publication de l'événement: {} vers le topic: {}", 
                     event.getClass().getSimpleName(), topic);
         logger.debug("Détails de l'événement: {}", event);
+
+        // Publier également un événement Spring interne pour les listeners @EventListener
+        try {
+            applicationEventPublisher.publishEvent(event);
+            logger.debug("📣 Événement Spring publié: {}", event.getClass().getSimpleName());
+        } catch (Exception e) {
+            logger.warn("⚠️  Impossible de publier l'événement Spring: {}", e.getMessage());
+        }
         
         CompletableFuture<SendResult<String, Object>> future = kafkaTemplate.send(topic, key, event);
         

@@ -1,100 +1,54 @@
-﻿# Rapport de Validation – Service Garage Renault
+﻿# Rapport de Validation - Service Garage
 
-- Date : 2025-11-30 19:49:41
+- Date : 2025-11-30 20:11:19
 - BaseUrl : http://localhost:8082
-- Statut de santé : 200
-- ID du garage : 61e4aa95-a820-4714-b6d6-54001d86f673
-- Véhicules demandés : 3
-- Véhicules créés : 3
-- Nombre de véhicules dans le garage : 3
-- Logs du consumer Kafka trouvés : True
-- Tentatives max (capacité) : 120
-- Capacité appliquée (au-delà de 50) : True
-- Capacité appliquée à la tentative : 51
+- Statut de santÃ© : 200
+- ID du garage : e413d19c-5ce1-4ebb-b5aa-e7df8e8f3da8
+- VÃ©hicules demandÃ©s : 3
+- VÃ©hicules crÃ©Ã©s : 3
+- Nombre de vÃ©hicules dans le garage : 3
+- Logs du consumer Kafka trouvÃ©s : True
+- Tentatives max (capacitÃ©) : 120
+- CapacitÃ© appliquÃ©e : True
+- CapacitÃ© appliquÃ©e Ã  la tentative : 51
 
-## Résumé
-- CRUD Garage : création=201, mise à jour=200, suppression=204
-- CRUD Véhicule : création=3×201, mise à jour=200, liste=200
-- CRUD Accessoires : création=201, liste=200, mise à jour=200
-- Recherche : carburant+accessoire=200 (≥1 résultat)
-- Capacité : appliquée=True (HTTP 400 au-delà de 50)
-- Kafka : Publisher et Consumers opérationnels (logs trouvés)
+## RÃ©sumÃ©
+- CRUD Garage : crÃ©ation=201, mise Ã  jour=200, suppression=voir ci-dessous
+- CRUD VÃ©hicule : crÃ©ation=3x, mise Ã  jour=200, liste OK
+- CRUD Accessoires : crÃ©ation/liste/mise Ã  jour dÃ©taillÃ©s ci-dessus
+- Recherche : carburant+accessoire dÃ©taillÃ©s ci-dessus
+- CapacitÃ© : appliquÃ©e=True
+- Kafka : logs consumer trouvÃ©s=True
 
----
+## Statut CRUD
+- Statut mise Ã  jour garage : 200
+- Statut mise Ã  jour vÃ©hicule : 200
 
-## Alignement avec le cahier des charges
+## VÃ©hicules par ModÃ¨le
+- RequÃªte modeleId : ce95dae2-d5f0-46a3-8d87-ed01e5e9a371
+- Nombre de vÃ©hicules pour ce modÃ¨le : 0
 
-- API REST complète: Endpoints CRUD pour garages, véhicules, accessoires; pagination/tri; recherches dédiées.
-- Contraintes métiers: capacité max 50 véhicules/garage; champs obligatoires (garage, véhicule, accessoire) validés; modèles partagés entre garages supportés (filtrage par `modeleId`).
-- Tests: tests unitaires et d’intégration présents (JUnit/Testcontainers). Des erreurs existent côté tests locaux, mais la validation d’exécution par script passe fonctionnellement avec l’environnement Docker.
-- Publisher de véhicule: événement `VehiculeCreatedEvent` publié lors de la création.
-- Consumers: listener Spring et consumer Kafka traitent et acquittent les messages.
+## Liste des Garages (PaginÃ©e)
+- Total garages : 1
+- Page : 
+- Taille : 
+- Renvois : 1
+- Nom du premier garage : Garage Central Updated
 
----
+## Accessoires
+- ID de l'accessoire crÃ©Ã© : 31978ae4-544a-430c-82b1-f6da658000af
+- Nom de l'accessoire crÃ©Ã© : GPS
+- Nombre d'accessoires : 1
+- Statut mise Ã  jour accessoire : 200
 
-## API testées et résultats
+## Recherche de Garages par Carburant et Accessoire
+- Nombre de rÃ©sultats de recherche : 1
+- ID du premier garage : e413d19c-5ce1-4ebb-b5aa-e7df8e8f3da8
+- Nom du premier garage : Garage Central Updated
 
-- `POST /api/v1/garages` → 201 (création OK)
-- `PUT /api/v1/garages/{id}` → 200
-- `GET /api/v1/garages/{id}` → 200
-- `GET /api/v1/garages?page=&size=&sort=&direction=` → 200 (pagination/tri)
-- `DELETE /api/v1/garages/{id}` → 204
-- `POST /api/v1/garages/{garageId}/vehicules` → 201 (×3 + remplissage jusqu’à 50 puis 400 attendu)
-- `PUT /api/v1/garages/{garageId}/vehicules/{vehiculeId}` → 200
-- `GET /api/v1/garages/{garageId}/vehicules` → 200
-- `GET /api/v1/vehicules?modeleId={UUID}` → 200
-- `POST /api/v1/garages/{garageId}/vehicules/{vehiculeId}/accessoires` → 201
-- `GET /api/v1/garages/{garageId}/vehicules/{vehiculeId}/accessoires` → 200
-- `PUT /api/v1/garages/{garageId}/vehicules/{vehiculeId}/accessoires/{accessoireId}` → 200
-- `GET /api/v1/garages/search?typeCarburant=ESSENCE&accessoireNom=GPS` → 200 (≥1 résultat)
-
----
-
-## Détails de l’exécution (extraits clés)
-
-- Garage créé: `61e4aa95-a820-4714-b6d6-54001d86f673`
-- Véhicules créés:
-	- `fb40078c-f891-4d30-92b6-11cdd56efc94`
-	- `bba24a6b-04d5-4dd9-9b32-09897f8cc588`
-	- `7757ffad-d152-4c03-82de-4a5bbf8cc63c`
-- Accessoire créé (sur le 1er véhicule): `679671f1-73ad-47d3-b45d-32342064c7a7` (nom: GPS)
-- Recherche garages (ESSENCE + «GPS») → 1 résultat, premier: `Garage Central Updated`
-
----
-
-## Extraits de logs identifiés (Publisher/Consumer Kafka)
-
-Lignes repérées dans les logs du conteneur `renault_garage_app` (5 dernières minutes):
-
-- Publisher:
-	- 2025-11-30T18:49:41.920Z INFO KafkaDomainEventPublisher: «Publication de l’événement: VehiculeCreatedEvent vers le topic: vehicule.created» pour `vehiculeId=fb40078c-f891-4d30-92b6-11cdd56efc94` (garage `61e4aa95-a820-4714-b6d6-54001d86f673`).
-	- 2025-11-30T18:49:41.991Z INFO KafkaDomainEventPublisher: publication pour `vehiculeId=bba24a6b-04d5-4dd9-9b32-09897f8cc588`.
-	- 2025-11-30T18:49:42.076Z INFO KafkaDomainEventPublisher: publication pour `vehiculeId=7757ffad-d152-4c03-82de-4a5bbf8cc63c`.
-
-- Consumer:
-	- 2025-11-30T18:49:41.951Z INFO VehiculeKafkaConsumer: «Réception d’un événement VehiculeCreatedEvent» (partition/offset indiqués par Kafka).
-	- 2025-11-30T18:49:41.995Z INFO VehiculeKafkaConsumer: «Réception d’un événement VehiculeCreatedEvent» (2ᵉ message).
-	- 2025-11-30T18:49:42.080Z INFO VehiculeKafkaConsumer: «Réception d’un événement VehiculeCreatedEvent» (3ᵉ message).
-
-Ces lignes confirment la publication et la consommation des événements, ainsi que l’acquittement côté consumer.
-
----
-
-## Capacité (50 véhicules/garage)
-
-- Remplissage jusqu’à 50 véhicules effectué par script.
-- Tentative supplémentaire au-delà de 50 → HTTP 400 (règle appliquée).
-- Capacité appliquée: True, à la tentative: 51.
-
----
-
-## Notes sur les tests locaux
-
-- Le projet contient des tests unitaires et d’intégration. Lors d’une exécution Maven locale, quelques erreurs de configuration de contexte ont été observées (cf. rapports Surefire). L’application fonctionne correctement via Docker Compose (PostgreSQL + Kafka), et la validation fonctionnelle par script est passée avec succès.
-
----
-
-## Conclusion
-
-Toutes les exigences fonctionnelles et techniques demandées sont couvertes et validées par exécution: API REST complète, contraintes métiers, tests présents, publisher Kafka à la création de véhicule, consumer(s) opérationnels, recherche par critères, pagination/tri, et rapport détaillé.
-
+## Prochaines Ã‰tapes
+- Inspecter Kafka UI Ã  http://localhost:8090 pour le topic vehicule.created.
+- VÃ©rifier les logs de l'app pour les accusÃ©s de rÃ©ception du consumer.
+- Ajuster MaxAttempt si la capacitÃ© est plus Ã©levÃ©e que prÃ©vu.
+- Statut suppression vÃ©hicule : 500
+- Statut suppression garage : 204

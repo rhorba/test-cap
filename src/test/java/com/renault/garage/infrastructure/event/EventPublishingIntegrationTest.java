@@ -34,17 +34,33 @@ class EventPublishingIntegrationTest {
     @SpyBean
     private VehiculeEventListener vehiculeEventListener;
     
+    @Autowired
+    private com.renault.garage.domain.repository.GarageRepository garageRepository;
+    
+    
     private UUID garageId;
     
     @BeforeEach
     void setUp() {
-        // Utiliser l'ID d'un garage existant dans les données de test
-        garageId = UUID.fromString("550e8400-e29b-41d4-a716-446655440001");
+        // Créer un garage réel en base de test (H2) pour le scénario
+        var horaires = new java.util.EnumMap<java.time.DayOfWeek, java.util.List<com.renault.garage.application.dto.OpeningTimeDTO>>(java.time.DayOfWeek.class);
+        horaires.put(java.time.DayOfWeek.MONDAY, java.util.List.of(new com.renault.garage.application.dto.OpeningTimeDTO(java.time.LocalTime.of(8,0), java.time.LocalTime.of(18,0))));
+
+        var address = new com.renault.garage.application.dto.AddressDTO("1 Rue Test","Rabat","10000","MA");
+
+        // Mapper minimal pour construire le domaine
+        var addrDomain = new com.renault.garage.domain.model.Address(address.rue(), address.ville(), address.codePostal(), address.pays());
+        var horairesDomain = new java.util.EnumMap<java.time.DayOfWeek, java.util.List<com.renault.garage.domain.model.OpeningTime>>(java.time.DayOfWeek.class);
+        horairesDomain.put(java.time.DayOfWeek.MONDAY, java.util.List.of(new com.renault.garage.domain.model.OpeningTime(java.time.LocalTime.of(8,0), java.time.LocalTime.of(18,0))));
+
+        var garage = new com.renault.garage.domain.model.Garage("Garage Test IT", addrDomain, "+212600000001", "garage.it@renault.ma", horairesDomain);
+        var saved = garageRepository.save(garage);
+        garageId = saved.getId();
     }
     
     @Test
     @DisplayName("Devrait publier et consommer l'événement lors de la création d'un véhicule")
-    void shouldPublishAndConsumeEventWhenVehiculeIsCreated() throws Exception {
+    void shouldPublishAndConsumeEventWhenVehiculeIsCreated() {
         // Given
         CreateVehiculeRequest request = new CreateVehiculeRequest(
             UUID.fromString("650e8400-e29b-41d4-a716-446655440001"), // modeleId existant
@@ -60,8 +76,7 @@ class EventPublishingIntegrationTest {
         assert response != null;
         assert response.id() != null;
         
-        // Attendre un peu pour le traitement asynchrone
-        Thread.sleep(1000);
+        // Le verify(..., timeout(...)) ci-dessous attend déjà l'appel asynchrone
         
         // Vérifier que le listener a bien été appelé avec l'événement
         verify(vehiculeEventListener, timeout(2000).atLeastOnce())
