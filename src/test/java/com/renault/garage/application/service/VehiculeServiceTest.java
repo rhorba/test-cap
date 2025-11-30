@@ -75,7 +75,7 @@ class VehiculeServiceTest {
         verify(vehiculeRepository, times(1)).save(Mockito.any(Vehicule.class));
         verify(garageRepository, times(1)).save(Mockito.any(Garage.class));
 
-        // Verify event published
+        // Vérifier que l'événement a été publié
         ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
         verify(eventPublisher, times(1)).publish(eventCaptor.capture());
         Object event = eventCaptor.getValue();
@@ -96,7 +96,7 @@ class VehiculeServiceTest {
 
     @Test
     void createVehicule_respectsGarageCapacity() {
-        // Fill garage to max capacity
+        // Remplir le garage à capacité maximale
         when(garageRepository.findById(garageId)).thenReturn(Optional.of(garage));
         for (int i = 0; i < Garage.getMaxCapacity(); i++) {
             garage.ajouterVehicule(new Vehicule(UUID.randomUUID(), "B", 2020, TypeCarburant.DIESEL));

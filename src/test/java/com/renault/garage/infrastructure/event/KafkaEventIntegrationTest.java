@@ -98,7 +98,7 @@ class KafkaEventIntegrationTest {
     @DisplayName("Devrait publier un événement Kafka lors de la création d'un véhicule")
     @Transactional
     void shouldPublishKafkaEventWhenVehiculeIsCreated() throws InterruptedException {
-        // Given
+        // Étant donné
         CreateVehiculeRequest request = new CreateVehiculeRequest(
             UUID.fromString("650e8400-e29b-41d4-a716-446655440001"),
             "Renault Megane E-Tech Electric",
@@ -106,10 +106,10 @@ class KafkaEventIntegrationTest {
             TypeCarburant.ELECTRIQUE
         );
         
-        // When
+        // Quand
         var response = vehiculeService.createVehicule(garageId, request);
         
-        // Then
+        // Alors
         ConsumerRecord<String, VehiculeCreatedEvent> received = records.poll(10, TimeUnit.SECONDS);
         
         assertThat(received).isNotNull();

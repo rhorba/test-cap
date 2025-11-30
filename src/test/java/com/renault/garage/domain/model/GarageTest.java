@@ -13,11 +13,11 @@ class GarageTest {
     @Test
     @DisplayName("Devrait créer un garage avec des informations valides")
     void shouldCreateGarageWithValidInformation() {
-        // Arrange
+        // Préparation
         Address address = new Address("123 Rue de Paris", "Paris", "75001", "France");
         Map<DayOfWeek, List<OpeningTime>> horaires = createDefaultHoraires();
         
-        // Act
+        // Action
         Garage garage = new Garage(
             "Renault Paris Centre",
             address,
@@ -26,7 +26,7 @@ class GarageTest {
             horaires
         );
         
-        // Assert
+        // Vérification
         assertNotNull(garage.getId());
         assertEquals("Renault Paris Centre", garage.getName());
         assertEquals("Paris", garage.getAddress().ville());
@@ -38,11 +38,11 @@ class GarageTest {
     @Test
     @DisplayName("Devrait lever une exception pour un email invalide")
     void shouldThrowExceptionForInvalidEmail() {
-        // Arrange
+        // Préparation
         Address address = new Address("123 Rue", "Paris", "75001", "France");
         Map<DayOfWeek, List<OpeningTime>> horaires = createDefaultHoraires();
         
-        // Act & Assert
+        // Action & Vérification
         assertThrows(IllegalArgumentException.class, () -> {
             new Garage(
                 "Garage Test",
@@ -57,14 +57,14 @@ class GarageTest {
     @Test
     @DisplayName("Devrait ajouter un véhicule au garage")
     void shouldAddVehiculeToGarage() {
-        // Arrange
+        // Préparation
         Garage garage = createTestGarage();
         Vehicule vehicule = createTestVehicule();
         
-        // Act
+        // Action
         garage.ajouterVehicule(vehicule);
         
-        // Assert
+        // Vérification
         assertEquals(1, garage.getVehicules().size());
         assertEquals(49, garage.getCapaciteRestante());
         assertEquals(garage.getId(), vehicule.getGarageId());
@@ -73,7 +73,7 @@ class GarageTest {
     @Test
     @DisplayName("Devrait lever une exception quand la capacité est dépassée")
     void shouldThrowExceptionWhenCapacityExceeded() {
-        // Arrange
+        // Préparation
         Garage garage = createTestGarage();
         
         // Ajouter 50 véhicules
@@ -81,7 +81,7 @@ class GarageTest {
             garage.ajouterVehicule(createTestVehicule());
         }
         
-        // Act & Assert
+        // Action & Vérification
         assertTrue(garage.estPlein());
         assertThrows(CapaciteGarageDepasseeException.class, () -> {
             garage.ajouterVehicule(createTestVehicule());
@@ -91,12 +91,12 @@ class GarageTest {
     @Test
     @DisplayName("Devrait supprimer un véhicule du garage")
     void shouldRemoveVehiculeFromGarage() {
-        // Arrange
+        // Préparation
         Garage garage = createTestGarage();
         Vehicule vehicule = createTestVehicule();
         garage.ajouterVehicule(vehicule);
         
-        // Act
+        // Action
         garage.supprimerVehicule(vehicule.getId());
         
         // Assert

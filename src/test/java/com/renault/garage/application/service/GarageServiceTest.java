@@ -48,15 +48,15 @@ class GarageServiceTest {
     @Test
     @DisplayName("Devrait créer un garage avec succès")
     void shouldCreateGarageSuccessfully() {
-        // Arrange
+        // Préparation
         when(garageMapper.toDomain(createRequest)).thenReturn(garage);
         when(garageRepository.save(garage)).thenReturn(garage);
         when(garageMapper.toResponse(garage)).thenReturn(garageResponse);
         
-        // Act
+        // Action
         GarageResponse result = garageService.createGarage(createRequest);
         
-        // Assert
+        // Vérification
         assertNotNull(result);
         assertEquals("Renault Paris", result.name());
         verify(garageRepository, times(1)).save(garage);
@@ -65,15 +65,15 @@ class GarageServiceTest {
     @Test
     @DisplayName("Devrait récupérer un garage par ID")
     void shouldGetGarageById() {
-        // Arrange
+        // Préparation
         UUID garageId = UUID.randomUUID();
         when(garageRepository.findById(garageId)).thenReturn(Optional.of(garage));
         when(garageMapper.toResponse(garage)).thenReturn(garageResponse);
         
-        // Act
+        // Action
         GarageResponse result = garageService.getGarageById(garageId);
         
-        // Assert
+        // Vérification
         assertNotNull(result);
         assertEquals("Renault Paris", result.name());
         verify(garageRepository, times(1)).findById(garageId);
@@ -82,11 +82,11 @@ class GarageServiceTest {
     @Test
     @DisplayName("Devrait lever GarageNotFoundException si garage introuvable")
     void shouldThrowGarageNotFoundExceptionWhenNotFound() {
-        // Arrange
+        // Préparation
         UUID garageId = UUID.randomUUID();
         when(garageRepository.findById(garageId)).thenReturn(Optional.empty());
         
-        // Act & Assert
+        // Action & Vérification
         assertThrows(GarageNotFoundException.class, () -> {
             garageService.getGarageById(garageId);
         });
@@ -95,16 +95,16 @@ class GarageServiceTest {
     @Test
     @DisplayName("Devrait récupérer tous les garages avec pagination")
     void shouldGetAllGaragesWithPagination() {
-        // Arrange
+        // Préparation
         Pageable pageable = PageRequest.of(0, 20);
         Page<Garage> garagePage = new PageImpl<>(List.of(garage));
         when(garageRepository.findAll(pageable)).thenReturn(garagePage);
         when(garageMapper.toResponse(any(Garage.class))).thenReturn(garageResponse);
         
-        // Act
+        // Action
         GarageListResponse result = garageService.getAllGarages(pageable);
         
-        // Assert
+        // Vérification
         assertNotNull(result);
         assertEquals(1, result.garages().size());
         assertEquals(0, result.currentPage());
@@ -114,14 +114,14 @@ class GarageServiceTest {
     @Test
     @DisplayName("Devrait supprimer un garage")
     void shouldDeleteGarage() {
-        // Arrange
+        // Préparation
         UUID garageId = UUID.randomUUID();
         when(garageRepository.existsById(garageId)).thenReturn(true);
         
-        // Act
+        // Action
         garageService.deleteGarage(garageId);
         
-        // Assert
+        // Vérification
         verify(garageRepository, times(1)).deleteById(garageId);
     }
     

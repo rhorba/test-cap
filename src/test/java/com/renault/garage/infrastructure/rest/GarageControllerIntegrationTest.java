@@ -35,14 +35,14 @@ class GarageControllerIntegrationTest {
     @Test
     @DisplayName("POST /api/v1/garages devrait créer un garage")
     void shouldCreateGarage() throws Exception {
-        // Arrange
+        // Préparation
         CreateGarageRequest request = createValidRequest();
         GarageResponse response = createValidResponse();
         
         when(garageService.createGarage(any(CreateGarageRequest.class)))
             .thenReturn(response);
         
-        // Act & Assert
+        // Action & Vérification
         mockMvc.perform(post("/api/v1/garages")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
@@ -56,13 +56,13 @@ class GarageControllerIntegrationTest {
     @Test
     @DisplayName("GET /api/v1/garages/{id} devrait retourner un garage")
     void shouldGetGarageById() throws Exception {
-        // Arrange
+        // Préparation
         UUID garageId = UUID.randomUUID();
         GarageResponse response = createValidResponse();
         
         when(garageService.getGarageById(garageId)).thenReturn(response);
         
-        // Act & Assert
+        // Action & Vérification
         mockMvc.perform(get("/api/v1/garages/{id}", garageId))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.name").value("Renault Paris"));
@@ -71,7 +71,7 @@ class GarageControllerIntegrationTest {
     @Test
     @DisplayName("POST /api/v1/garages devrait retourner 400 si validation échoue")
     void shouldReturn400WhenValidationFails() throws Exception {
-        // Arrange - Requête avec email invalide
+        // Préparation - Requête avec email invalide
         CreateGarageRequest invalidRequest = new CreateGarageRequest(
             "Garage Test",
             new AddressDTO("Rue", "Ville", "Code", "Pays"),
@@ -82,7 +82,7 @@ class GarageControllerIntegrationTest {
             ))
         );
         
-        // Act & Assert
+        // Action & Vérification
         mockMvc.perform(post("/api/v1/garages")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(invalidRequest)))
@@ -93,10 +93,10 @@ class GarageControllerIntegrationTest {
     @Test
     @DisplayName("DELETE /api/v1/garages/{id} devrait supprimer un garage")
     void shouldDeleteGarage() throws Exception {
-        // Arrange
+        // Préparation
         UUID garageId = UUID.randomUUID();
         
-        // Act & Assert
+        // Action & Vérification
         mockMvc.perform(delete("/api/v1/garages/{id}", garageId))
             .andExpect(status().isNoContent());
     }

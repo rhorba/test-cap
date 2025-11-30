@@ -61,7 +61,7 @@ class EventPublishingIntegrationTest {
     @Test
     @DisplayName("Devrait publier et consommer l'événement lors de la création d'un véhicule")
     void shouldPublishAndConsumeEventWhenVehiculeIsCreated() {
-        // Given
+        // Étant donné
         CreateVehiculeRequest request = new CreateVehiculeRequest(
             UUID.fromString("650e8400-e29b-41d4-a716-446655440001"), // modeleId existant
             "Renault Megane E-Tech",
@@ -69,10 +69,10 @@ class EventPublishingIntegrationTest {
             TypeCarburant.ELECTRIQUE
         );
         
-        // When
+        // Quand
         VehiculeResponse response = vehiculeService.createVehicule(garageId, request);
         
-        // Then - Vérifier que le véhicule a été créé
+        // Alors - Vérifier que le véhicule a été créé
         assert response != null;
         assert response.id() != null;
         

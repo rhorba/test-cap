@@ -26,7 +26,7 @@ class GarageServiceIntegrationTest {
     
     @Test
     void shouldCreateGarage() {
-        // Given
+        // Étant donné
         CreateGarageRequest request = new CreateGarageRequest(
             "Renault Paris Test",
             new AddressDTO("123 Rue Test", "Paris", "75001", "France"),
@@ -39,10 +39,10 @@ class GarageServiceIntegrationTest {
             )
         );
         
-        // When
+        // Quand
         GarageResponse response = garageService.createGarage(request);
         
-        // Then
+        // Alors
         assertNotNull(response);
         assertNotNull(response.id());
         assertEquals("Renault Paris Test", response.name());
@@ -53,7 +53,7 @@ class GarageServiceIntegrationTest {
     
     @Test
     void shouldGetGarageById() {
-        // Given
+        // Étant donné
         CreateGarageRequest request = new CreateGarageRequest(
             "Renault Lyon",
             new AddressDTO("456 Rue Lyon", "Lyon", "69000", "France"),
@@ -67,10 +67,10 @@ class GarageServiceIntegrationTest {
         );
         GarageResponse created = garageService.createGarage(request);
         
-        // When
+        // Quand
         GarageResponse found = garageService.getGarageById(created.id());
         
-        // Then
+        // Alors
         assertNotNull(found);
         assertEquals(created.id(), found.id());
         assertEquals("Renault Lyon", found.name());
@@ -78,7 +78,7 @@ class GarageServiceIntegrationTest {
     
     @Test
     void shouldThrowExceptionWhenGarageNotFound() {
-        // When & Then
+        // Quand & Alors
         assertThrows(GarageNotFoundException.class, () -> {
             garageService.getGarageById(java.util.UUID.randomUUID());
         });

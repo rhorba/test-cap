@@ -43,7 +43,7 @@ class VehiculeApiKafkaIntegrationTest {
 
     @Test
     void createVehicule_triggersKafkaEvent_andReturns201() throws Exception {
-        // Prepare a consumer to capture the published event
+        // Préparer un consumer pour capturer l'événement publié
         Map<String, Object> consumerProps = KafkaTestUtils.consumerProps("test-group", "true", embeddedKafka);
         consumerProps.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
         consumerProps.put(JsonDeserializer.VALUE_DEFAULT_TYPE, VehiculeCreatedEvent.class.getName());
@@ -55,8 +55,8 @@ class VehiculeApiKafkaIntegrationTest {
         container.setupMessageListener(listener);
         container.start();
 
-        // Call REST API to create a vehicle (use a random garageId; repository may reject, so mock data route)
-        // For integration, assume a garage exists with ID provided via test data or initial migrations; here we skip DB by focusing on HTTP status validation.
+        // Appeler l'API REST pour créer un véhicule (utilise un garageId aléatoire; le repository peut rejeter)
+        // Pour l'intégration, supposer qu'un garage existe avec l'ID fourni via les données de test; ici on se concentre sur la validation du statut HTTP.
         UUID garageId = UUID.randomUUID();
         String payload = "{\n" +
                 "  \"modeleId\": \"" + UUID.randomUUID() + "\",\n" +
@@ -65,8 +65,8 @@ class VehiculeApiKafkaIntegrationTest {
                 "  \"typeCarburant\": \"ESSENCE\"\n" +
                 "}";
 
-        // Expect 404 if garage doesn't exist, but when data exists it should be 201 and publish event.
-        // We focus on Kafka publication observable; if controller returns 201, event should be published.
+        // S'attendre à 404 si le garage n'existe pas, mais quand les données existent ça devrait être 201 et publier l'événement.
+        // On se concentre sur la publication Kafka observable; si le contrôleur retourne 201, l'événement devrait être publié.
         try {
             mockMvc.perform(
                     post("/api/v1/garages/" + garageId + "/vehicules")
@@ -74,12 +74,12 @@ class VehiculeApiKafkaIntegrationTest {
                             .content(payload)
             ).andExpect(status().isCreated());
         } catch (AssertionError ae) {
-            // If garageId not found, the business constraint returns 404; test Kafka part remains valid when proper test data is in place.
+            // Si le garageId n'est pas trouvé, la contrainte métier retourne 404; le test Kafka reste valide quand les bonnes données de test sont en place.
         }
 
-        // Await an event (best effort within 5 seconds)
+        // Attendre un événement (meilleur effort dans les 5 secondes)
         ConsumerRecord<String, VehiculeCreatedEvent> record = records.poll(5, TimeUnit.SECONDS);
-        // If an event is captured, validate its structure
+        // Si un événement est capturé, valider sa structure
         if (record != null) {
             VehiculeCreatedEvent event = record.value();
             assertThat(event).isNotNull();

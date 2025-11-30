@@ -40,14 +40,14 @@ class VehiculeEventListenerTest {
     @Test
     @DisplayName("Devrait consommer l'événement VehiculeCreatedEvent sans erreur")
     void shouldConsumeVehiculeCreatedEventSuccessfully() {
-        // Act & Assert - Ne devrait pas lever d'exception
+        // Action & Vérification - Ne devrait pas lever d'exception
         assertDoesNotThrow(() -> vehiculeEventListener.onVehiculeCreated(event));
     }
     
     @Test
     @DisplayName("L'événement devrait contenir les bonnes informations")
     void shouldContainCorrectEventInformation() {
-        // Assert
+        // Vérification
         assertNotNull(event.getVehiculeId());
         assertNotNull(event.getGarageId());
         assertEquals("Renault Clio", event.getBrand());
