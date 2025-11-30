@@ -1,3 +1,87 @@
+# Microservice Renault – Gestion des Garages, Véhicules et Accessoires
+
+Ce microservice gère les informations relatives aux garages affiliés au réseau Renault, ainsi que les véhicules et leurs accessoires. Il inclut des contraintes métiers et des fonctionnalités de recherche, ainsi qu’un publisher/consumer Kafka pour les événements de création de véhicule.
+
+## Prérequis
+- Docker et Docker Compose
+- Java 17 / Spring Boot 3.x
+- Maven
+
+## Démarrage
+- Lancer l’environnement Docker (Postgres, Kafka, UI, PgAdmin, app) et l’application:
+  - Via Docker Compose (selon votre setup) ou directement l’application Spring Boot.
+
+## Points d’API (principaux)
+- Garages (`/api/v1/garages`):
+  - `POST /api/v1/garages` – Créer un garage
+  - `GET /api/v1/garages/{id}` – Récupérer un garage par ID
+  - `PUT /api/v1/garages/{id}` – Mettre à jour un garage
+  - `DELETE /api/v1/garages/{id}` – Supprimer un garage
+  - `GET /api/v1/garages?page=&size=&sort=&direction=` – Liste paginée triée
+  - `GET /api/v1/garages/search?typeCarburant=&accessoireNom=` – Rechercher par type de carburant et accessoire
+
+- Véhicules (`/api/v1/garages/{garageId}/vehicules`):
+  - `POST` – Créer un véhicule (publisher Kafka sur `vehicule.created`)
+  - `GET` – Lister les véhicules du garage
+  - `GET /{vehiculeId}` – Détails d’un véhicule
+  - `PUT /{vehiculeId}` – Mettre à jour un véhicule
+  - `DELETE /{vehiculeId}` – Supprimer un véhicule
+
+- Requêtes véhicules transversales:
+  - `GET /api/v1/vehicules?modeleId={UUID}` – Lister tous les véhicules d’un modèle sur plusieurs garages
+
+- Accessoires (`/api/v1/garages/{garageId}/vehicules/{vehiculeId}/accessoires`):
+  - `POST` – Ajouter un accessoire au véhicule
+  - `GET` – Lister les accessoires d’un véhicule
+  - `PUT /{accessoireId}` – Mettre à jour un accessoire
+  - `DELETE /{accessoireId}` – Supprimer un accessoire
+
+## Contraintes Métiers
+- Capacité maximale par garage: 50 véhicules (erreur HTTP 400 au-delà).
+- Un modèle de véhicule peut être stocké dans plusieurs garages.
+- Informations obligatoires:
+  - Garage: `name`, `address`, `telephone`, `email`, `horairesOuverture`.
+  - Véhicule: `brand`, `anneeFabrication`, `typeCarburant`.
+  - Accessoire: `nom`, `description`, `prix`, `type`.
+
+## Validation automatisée (script PowerShell)
+Un script PowerShell permet de valider l’ensemble des fonctionnalités et génère un rapport Markdown.
+
+- Fichier: `scripts/validate-garage-service.ps1`
+- Exécution:
+
+```powershell
+Set-Location "c:\Users\moham\OneDrive - um5.ac.ma\Desktop\testcopilot2\test-cap";
+powershell -ExecutionPolicy Bypass -File ".\scripts\validate-garage-service.ps1" -BaseUrl http://localhost:8082 -VehicleCount 3 -MaxAttempt 120 -ReportPath ".\validation-report.md"
+```
+
+- Ce que le script vérifie:
+  - Santé du service
+  - CRUD garage (création, mise à jour, suppression)
+  - CRUD véhicule (création multiple, liste, mise à jour, suppression)
+  - Requêtes véhicules par modèle
+  - Liste paginée des garages
+  - CRUD accessoires (création, liste, mise à jour)
+  - Recherche de garages par carburant et accessoire
+  - Capacité (remplissage à 50 puis 400 au-delà)
+  - Kafka: vérification des logs du consumer
+  - Génération du rapport: `validation-report.md`
+
+## Événements Kafka
+- Topic: `vehicule.created`
+- Publisher: émet lors de la création d’un véhicule.
+- Consumer: consomme et acquitte les messages (vérifiable via les logs du conteneur applicatif).
+
+## Tests
+- Tests unitaires et d’intégration présents pour le service et les contrôleurs de garages.
+- Possibilité d’étendre pour véhicules et accessoires.
+
+## UI Swagger / OpenAPI
+- Les contrôleurs sont annotés avec des descriptions en français.
+
+## Notes
+- Les ports: application mappée sur `http://localhost:8082`.
+- Kafka UI: `http://localhost:8090`.
 # 🚗 Renault Garage Management Service
 
 Microservice de gestion des garages, véhicules et accessoires pour le réseau Renault, avec architecture hexagonale et système d'événements Kafka.
