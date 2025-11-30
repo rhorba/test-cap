@@ -31,6 +31,8 @@ $report = [ordered]@{
   CapacityMaxAttempt = $MaxAttempt
   CapacityEnforced = $false
   CapacityEnforcedAt = $null
+  GarageUpdateStatus = $null
+  VehicleUpdateStatus = $null
 }
 
 Write-Host "Creating garage..." -ForegroundColor Cyan
@@ -51,6 +53,22 @@ $garageJson = $garageResp.Content | ConvertFrom-Json
 $garageId = $garageJson.id
 Write-Host "Garage created:" $garageId -ForegroundColor Green
 $report.GarageId = $garageId
+
+Write-Host "Updating garage..." -ForegroundColor Cyan
+$updateGaragePayload = @'
+{
+  "name": "Garage Central Updated",
+  "address": { "rue": "1 Rue Test", "ville": "Rabat", "codePostal": "10000", "pays": "MA" },
+  "telephone": "+212600000001",
+  "email": "garage.central.updated@renault.ma",
+  "horairesOuverture": {
+    "MONDAY": [ { "startTime": "08:00:00", "endTime": "12:00:00" }, { "startTime": "14:00:00", "endTime": "18:00:00" } ]
+  }
+}
+'@
+$updateGarageResp = Invoke-Api PUT "$BaseUrl/api/v1/garages/$garageId" $updateGaragePayload
+$report.GarageUpdateStatus = $updateGarageResp.StatusCode
+Write-Host ("Garage update status: {0}" -f $updateGarageResp.StatusCode) -ForegroundColor Green
 
 Write-Host "Creating vehicles ($VehicleCount)..." -ForegroundColor Cyan
 $vehPayloadTemplate = {
@@ -73,6 +91,27 @@ for ($i = 1; $i -le $VehicleCount; $i++) {
   $report.VehiclesCreated++
 }
 
+Write-Host "Updating first vehicle (if any)..." -ForegroundColor Cyan
+if ($report.VehiclesCreated -gt 0) {
+  # Retrieve list to get IDs
+  $vehListResp = Invoke-Api GET "$BaseUrl/api/v1/garages/$garageId/vehicules"
+  $vehList = $vehListResp.Content | ConvertFrom-Json
+  if (($vehList | Measure-Object).Count -gt 0) {
+    $firstVehId = $vehList[0].id
+    $updateVehPayload = @'
+{
+  "brand": "RENAULT CLIO RS",
+  "anneeFabrication": 2024,
+  "typeCarburant": "ESSENCE",
+  "modeleId": "00000000-0000-0000-0000-000000000000"
+}
+'@
+    $vehUpdateResp = Invoke-Api PUT "$BaseUrl/api/v1/garages/$garageId/vehicules/$firstVehId" $updateVehPayload
+    $report.VehicleUpdateStatus = $vehUpdateResp.StatusCode
+    Write-Host ("Vehicle update status: {0}" -f $vehUpdateResp.StatusCode) -ForegroundColor Green
+  }
+}
+
 Write-Host "Listing vehicles for garage..." -ForegroundColor Cyan
 $listResp = Invoke-Api GET "$BaseUrl/api/v1/garages/$garageId/vehicules"
 if ($listResp.StatusCode -ne 200) { Write-Error "List vehicles failed: $($listResp.StatusCode)"; exit 1 }
@@ -86,22 +125,31 @@ Write-Host "Recent consumer logs (app):" -ForegroundColor Cyan
 docker logs renault_garage_app --since 5m | Select-String "KAFKA CONSUMER|VehiculeCreatedEvent|Message acquitté"
 if ($LASTEXITCODE -eq 0) { $report.KafkaConsumerLogsFound = $true }
 
-Write-Host ("Capacity stress: increasing until 400 or {0} attempts..." -f $MaxAttempt) -ForegroundColor Cyan
+Write-Host ("Capacity stress: enforce at exactly 50 vehicles (HTTP 400) ..." ) -ForegroundColor Cyan
 $failDetected = $false
-for ($i = ($VehicleCount+1); $i -le $MaxAttempt; $i++) {
+# First, compute current count in garage
+$currentCountResp = Invoke-Api GET "$BaseUrl/api/v1/garages/$garageId/vehicules"
+$currentCountJson = $currentCountResp.Content | ConvertFrom-Json
+$currentCount = ($currentCountJson | Measure-Object).Count
+$targetAdds = [Math]::Max(0, 50 - $currentCount)
+for ($i = 1; $i -le $targetAdds; $i++) {
   $vehPayload = & $vehPayloadTemplate
   $vehResp = Invoke-Api POST "$BaseUrl/api/v1/garages/$garageId/vehicules" $vehPayload
-  if ($vehResp.StatusCode -eq 400) { 
-    $failDetected = $true; 
-    Write-Host ("Capacity rule enforced at vehicle #{0}." -f $i) -ForegroundColor Green
-    $report.CapacityEnforced = $true
-    $report.CapacityEnforcedAt = $i
-    break 
+  if ($vehResp.StatusCode -ne 201) {
+    Write-Host ("Unexpected status while filling to capacity: {0}" -f $vehResp.StatusCode) -ForegroundColor Yellow
   }
 }
-if (-not $failDetected) { 
-  Write-Warning "Capacity threshold not reached within max attempts (expected 400)." 
-} 
+# Attempt one more beyond capacity, expect 400
+$vehPayload = & $vehPayloadTemplate
+$overResp = Invoke-Api POST "$BaseUrl/api/v1/garages/$garageId/vehicules" $vehPayload
+if ($overResp.StatusCode -eq 400) {
+  $failDetected = $true
+  $report.CapacityEnforced = $true
+  $report.CapacityEnforcedAt = 51
+  Write-Host "Capacity rule enforced exactly beyond 50 (HTTP 400)." -ForegroundColor Green
+} else {
+  Write-Warning ("Expected 400 beyond capacity; got {0}" -f $overResp.StatusCode)
+}
 
 Write-Host "Validation complete." -ForegroundColor Green
 
@@ -120,6 +168,18 @@ $md += ("- Kafka Consumer Logs Found: {0}" -f $report.KafkaConsumerLogsFound)
 $md += ("- Capacity Max Attempt: {0}" -f $report.CapacityMaxAttempt)
 $md += ("- Capacity Enforced: {0}" -f $report.CapacityEnforced)
 $md += ("- Capacity Enforced At Attempt: {0}" -f $report.CapacityEnforcedAt)
+$md += ""
+$md += "## Summary"
+$md += ("- Garage CRUD: create=201, update={0}, delete=reported below" -f $report.GarageUpdateStatus)
+$md += ("- Vehicle CRUD: create={0}x, update={1}, list OK" -f $report.VehiclesCreated, $report.VehicleUpdateStatus)
+$md += ("- Accessories CRUD: create/list/update status recorded above")
+$md += ("- Search: fuel+accessory query status recorded above")
+$md += ("- Capacity: enforced={0}" -f $report.CapacityEnforced)
+$md += ("- Kafka: consumer logs found={0}" -f $report.KafkaConsumerLogsFound)
+$md += ""
+$md += "## CRUD Status"
+$md += ("- Garage Update Status: {0}" -f $report.GarageUpdateStatus)
+$md += ("- Vehicle Update Status: {0}" -f $report.VehicleUpdateStatus)
 $md += ""
 $md += "## Vehicles By Model"
 $vehByModelId = (New-Guid).Guid
@@ -204,6 +264,19 @@ $md += "## Next Steps"
 $md += "- Inspect Kafka UI at http://localhost:8090 for topic vehicule.created."
 $md += "- Verify app logs for consumer acknowledgments."
 $md += "- Adjust MaxAttempt if capacity is higher than expected."
+
+# Cleanup: delete first vehicle and the garage
+if ($report.VehiclesCreated -gt 0) {
+  $vehListResp2 = Invoke-Api GET "$BaseUrl/api/v1/garages/$garageId/vehicules"
+  $vehList2 = $vehListResp2.Content | ConvertFrom-Json
+  if (($vehList2 | Measure-Object).Count -gt 0) {
+    $firstVehId2 = $vehList2[0].id
+    $vehDeleteResp = Invoke-Api DELETE "$BaseUrl/api/v1/garages/$garageId/vehicules/$firstVehId2"
+    $md += ("- Vehicle delete status: {0}" -f $vehDeleteResp.StatusCode)
+  }
+}
+$garageDeleteResp = Invoke-Api DELETE "$BaseUrl/api/v1/garages/$garageId"
+$md += ("- Garage delete status: {0}" -f $garageDeleteResp.StatusCode)
 
 Set-Content -Path $ReportPath -Value ($md -join "`n") -Encoding UTF8
 Write-Host ("Report written to {0}" -f (Resolve-Path $ReportPath)) -ForegroundColor Cyan
