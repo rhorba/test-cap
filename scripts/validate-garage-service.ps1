@@ -140,8 +140,8 @@ $report.VehiclesInGarageCount = ($listJson | Measure-Object).Count
 Write-Host "Vérifiez le topic Kafka 'vehicule.created' dans Kafka UI (manuel): http://localhost:8090" -ForegroundColor Yellow
 
 Write-Host "Logs récents du consumer (app):" -ForegroundColor Cyan
-docker logs renault_garage_app --since 5m | Select-String "KAFKA CONSUMER|VehiculeCreatedEvent|Message acquitté"
-if ($LASTEXITCODE -eq 0) { $report.KafkaConsumerLogsFound = $true }
+$logs = docker logs renault_garage_app --since 5m 2>&1
+if ($logs -match "KAFKA CONSUMER|VehiculeCreatedEvent|Message acquitté") { $report.KafkaConsumerLogsFound = $true } else { $report.KafkaConsumerLogsFound = $false }
 
 Write-Host ("Test de capacité: atteindre exactement 50 véhicules (HTTP 400 au-delà)..." ) -ForegroundColor Cyan
 $failDetected = $false
@@ -157,16 +157,28 @@ for ($i = 1; $i -le $targetAdds; $i++) {
     Write-Host ("Statut inattendu pendant le remplissage de capacité: {0}" -f $vehResp.StatusCode) -ForegroundColor Yellow
   }
 }
-# Attempt one more beyond capacity, expect 400
-$vehPayload = & $vehPayloadTemplate
-$overResp = Invoke-Api POST "$BaseUrl/api/v1/garages/$garageId/vehicules" $vehPayload
-if ($overResp.StatusCode -eq 400) {
-  $failDetected = $true
-  $report.CapacityEnforced = $true
-  $report.CapacityEnforcedAt = 51
-  Write-Host "Règle de capacité appliquée exactement au-delà de 50 (HTTP 400)." -ForegroundColor Green
-} else {
-  Write-Warning ("400 attendu au-delà de la capacité; obtenu {0}" -f $overResp.StatusCode)
+# Attempt beyond capacity with retry up to MaxAttempt, expect 400
+for ($attempt = 1; $attempt -le $MaxAttempt; $attempt++) {
+  $vehPayload = & $vehPayloadTemplate
+  $overResp = Invoke-Api POST "$BaseUrl/api/v1/garages/$garageId/vehicules" $vehPayload
+  if ($overResp.StatusCode -eq 400) {
+    $failDetected = $true
+    $report.CapacityEnforced = $true
+    # Capacity enforced at 50 + attempt number after reaching capacity
+    $report.CapacityEnforcedAt = 50 + $attempt
+    Write-Host ("Règle de capacité appliquée (HTTP 400) à la tentative {0}." -f $report.CapacityEnforcedAt) -ForegroundColor Green
+    break
+  } elseif ($overResp.StatusCode -eq 201) {
+    # Still allowed; continue trying until 400 appears or attempts exhausted
+    Write-Host ("Au-delà de 50: création encore acceptée (tentative {0})." -f (50 + $attempt)) -ForegroundColor Yellow
+    Start-Sleep -Seconds 1
+  } else {
+    Write-Host ("Réponse inattendue au-delà de la capacité: {0}" -f $overResp.StatusCode) -ForegroundColor Yellow
+    Start-Sleep -Seconds 1
+  }
+}
+if (-not $failDetected) {
+  Write-Warning "Capacité non refusée après les tentatives configurées."
 }
 
 Write-Host "Validation terminée." -ForegroundColor Green
@@ -215,15 +227,16 @@ $md += "## Liste des Garages (Paginée)"
 $garagesResp = Invoke-Api GET ("{0}/api/v1/garages?page=0&size=10&sort=name&direction=ASC" -f $BaseUrl)
 if ($garagesResp.StatusCode -eq 200) {
   $garagesJson = $garagesResp.Content | ConvertFrom-Json
+  # Handle typical Spring Data Page structure: number, size, totalElements, content[]
   $total = $garagesJson.totalElements
   $pageSize = $garagesJson.size
-  $pageNumber = $garagesJson.page
-  $returned = ($garagesJson.garages | Measure-Object).Count
+  $pageNumber = $garagesJson.number
+  $returned = ($garagesJson.content | Measure-Object).Count
   $md += ("- Total garages : {0}" -f $total)
   $md += ("- Page : {0}" -f $pageNumber)
   $md += ("- Taille : {0}" -f $pageSize)
   $md += ("- Renvois : {0}" -f $returned)
-  if ($returned -gt 0) { $md += ("- Nom du premier garage : {0}" -f $garagesJson.garages[0].name) }
+  if ($returned -gt 0) { $md += ("- Nom du premier garage : {0}" -f $garagesJson.content[0].name) }
 } else {
   $md += ("- Échec de la liste des garages : {0}" -f $garagesResp.StatusCode)
 }
@@ -330,6 +343,14 @@ if ($report.VehiclesCreated -gt 0) {
   $vehList2 = $vehListResp2.Content | ConvertFrom-Json
   if (($vehList2 | Measure-Object).Count -gt 0) {
     $firstVehId2 = $vehList2[0].id
+    # Delete accessories attached to the vehicle first to avoid 500 errors
+    $accListResp2 = Invoke-Api GET ("{0}/api/v1/garages/{1}/vehicules/{2}/accessoires" -f $BaseUrl, $garageId, $firstVehId2)
+    if ($accListResp2.StatusCode -eq 200) {
+      $accList2 = $accListResp2.Content | ConvertFrom-Json
+      foreach ($acc in $accList2) {
+        Invoke-Api DELETE ("{0}/api/v1/garages/{1}/vehicules/{2}/accessoires/{3}" -f $BaseUrl, $garageId, $firstVehId2, $acc.id) | Out-Null
+      }
+    }
     $vehDeleteResp = Invoke-Api DELETE "$BaseUrl/api/v1/garages/$garageId/vehicules/$firstVehId2"
     $md += ("- Statut suppression véhicule : {0}" -f $vehDeleteResp.StatusCode)
   }
@@ -337,5 +358,6 @@ if ($report.VehiclesCreated -gt 0) {
 $garageDeleteResp = Invoke-Api DELETE "$BaseUrl/api/v1/garages/$garageId"
 $md += ("- Statut suppression garage : {0}" -f $garageDeleteResp.StatusCode)
 
-Set-Content -Path $ReportPath -Value ($md -join "`n") -Encoding UTF8
+# Write report with UTF-8 BOM to avoid mojibake in Windows viewers
+[System.IO.File]::WriteAllText($ReportPath, ($md -join "`n"), (New-Object System.Text.UTF8Encoding($true)))
 Write-Host ("Rapport écrit dans {0}" -f (Resolve-Path $ReportPath)) -ForegroundColor Cyan

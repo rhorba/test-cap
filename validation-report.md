@@ -1,9 +1,9 @@
 ﻿# Rapport de Validation - Service Garage
 
-- Date : 2025-11-30 20:20:12
+- Date : 2025-11-30 20:47:03
 - BaseUrl : http://localhost:8082
 - Statut de santÃ© : 200
-- ID du garage : 43c42591-8ee3-4e5d-bf5b-c84a7c462bff
+- ID du garage : 84704ca4-540f-4b9d-8458-187853443a54
 - VÃ©hicules demandÃ©s : 3
 - VÃ©hicules crÃ©Ã©s : 3
 - Nombre de vÃ©hicules dans le garage : 3
@@ -25,25 +25,24 @@
 - Statut mise Ã  jour vÃ©hicule : 200
 
 ## VÃ©hicules par ModÃ¨le
-- RequÃªte modeleId : 16a19ace-a886-4bb8-b1da-7d310738ab60
+- RequÃªte modeleId : 80b637bf-6c73-49b3-84e9-29e9d52b8179
 - Nombre de vÃ©hicules pour ce modÃ¨le : 0
 
 ## Liste des Garages (PaginÃ©e)
 - Total garages : 1
 - Page : 
 - Taille : 
-- Renvois : 1
-- Nom du premier garage : Garage Central Updated
+- Renvois : 0
 
 ## Accessoires
-- ID de l'accessoire crÃ©Ã© : e971f347-bd9f-4548-b37e-05007b0cb81e
+- ID de l'accessoire crÃ©Ã© : 8866666b-70cd-4719-af50-ea62239e56a5
 - Nom de l'accessoire crÃ©Ã© : GPS
 - Nombre d'accessoires : 1
 - Statut mise Ã  jour accessoire : 200
 
 ## Recherche de Garages par Carburant et Accessoire
 - Nombre de rÃ©sultats de recherche : 1
-- ID du premier garage : 43c42591-8ee3-4e5d-bf5b-c84a7c462bff
+- ID du premier garage : 84704ca4-540f-4b9d-8458-187853443a54
 - Nom du premier garage : Garage Central Updated
 
 ## Validation Exigences Use Case
@@ -87,5 +86,5 @@
 ## Prochaines Ã‰tapes
 - Inspecter Kafka UI Ã  http://localhost:8090 pour le topic vehicule.created.
 - VÃ©rifier les logs de l'app pour les accusÃ©s de rÃ©ception du consumer.
-- Statut suppression vÃ©hicule : 500
+- Statut suppression vÃ©hicule : 204
 - Statut suppression garage : 204
