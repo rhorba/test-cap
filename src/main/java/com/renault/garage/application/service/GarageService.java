@@ -1,7 +1,11 @@
 package com.renault.garage.application.service;
 
 import com.renault.garage.domain.model.Garage;
+import com.renault.garage.domain.model.TypeCarburant;
+import com.renault.garage.domain.model.Vehicule;
+import com.renault.garage.domain.repository.AccessoireRepository;
 import com.renault.garage.domain.repository.GarageRepository;
+import com.renault.garage.domain.repository.VehiculeRepository;
 import com.renault.garage.domain.exception.*;
 import com.renault.garage.application.dto.*;
 import com.renault.garage.application.mapper.GarageMapper;
@@ -12,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Service - Gestion des garages
@@ -24,10 +27,15 @@ public class GarageService {
     
     private final GarageRepository garageRepository;
     private final GarageMapper garageMapper;
+    private final VehiculeRepository vehiculeRepository;
+    private final AccessoireRepository accessoireRepository;
     
-    public GarageService(GarageRepository garageRepository, GarageMapper garageMapper) {
+    public GarageService(GarageRepository garageRepository, GarageMapper garageMapper,
+                         VehiculeRepository vehiculeRepository, AccessoireRepository accessoireRepository) {
         this.garageRepository = garageRepository;
         this.garageMapper = garageMapper;
+        this.vehiculeRepository = vehiculeRepository;
+        this.accessoireRepository = accessoireRepository;
     }
     
     /**
@@ -61,7 +69,7 @@ public class GarageService {
         List<GarageResponse> garages = garagePage.getContent()
             .stream()
             .map(garageMapper::toResponse)
-            .collect(Collectors.toList());
+            .toList();
         
         return new GarageListResponse(
             garages,
@@ -112,7 +120,7 @@ public class GarageService {
         return garageRepository.findByVille(ville)
             .stream()
             .map(garageMapper::toResponse)
-            .collect(Collectors.toList());
+            .toList();
     }
     
     /**
@@ -123,6 +131,24 @@ public class GarageService {
         return garageRepository.findByNameContaining(name)
             .stream()
             .map(garageMapper::toResponse)
-            .collect(Collectors.toList());
+            .toList();
     }
+
+        /**
+         * Recherche des garages par type de carburant des véhicules et disponibilité d'un accessoire par nom (contient)
+         */
+        @Transactional(readOnly = true)
+        public List<GarageResponse> searchByFuelAndAccessoryName(TypeCarburant typeCarburant, String accessoireNom) {
+        List<Vehicule> vehicules = vehiculeRepository.findByTypeCarburant(typeCarburant);
+        return vehicules.stream()
+            .filter(v -> accessoireRepository.findByVehiculeId(v.getId()).stream()
+                .anyMatch(a -> a.getNom() != null && a.getNom().toLowerCase().contains(accessoireNom.toLowerCase())))
+            .map(Vehicule::getGarageId)
+            .distinct()
+            .map(garageId -> garageRepository.findById(garageId)
+                .orElse(null))
+            .filter(g -> g != null)
+            .map(garageMapper::toResponse)
+                .toList();
+        }
 }

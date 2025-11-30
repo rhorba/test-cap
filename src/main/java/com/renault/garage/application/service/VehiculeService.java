@@ -18,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Service - Gestion des véhicules
@@ -54,6 +53,14 @@ public class VehiculeService {
             .orElseThrow(() -> new GarageNotFoundException(
                 "Garage non trouvé avec l'ID: " + garageId
             ));
+
+        // Vérifier la capacité actuelle de manière robuste côté persistance
+        long currentCount = vehiculeRepository.countByGarageId(garageId);
+        if (currentCount >= Garage.getMaxCapacity()) {
+            throw new CapaciteGarageDepasseeException(
+                "Le garage a atteint sa capacité maximale de " + Garage.getMaxCapacity() + " véhicules"
+            );
+        }
         
         Vehicule vehicule = vehiculeMapper.toDomain(request);
         
@@ -104,7 +111,7 @@ public class VehiculeService {
         return vehiculeRepository.findByGarageId(garageId)
             .stream()
             .map(vehiculeMapper::toResponse)
-            .collect(Collectors.toList());
+            .toList();
     }
     
     /**

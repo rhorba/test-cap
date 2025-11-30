@@ -2,6 +2,7 @@ package com.renault.garage.infrastructure.rest;
 
 import com.renault.garage.application.dto.*;
 import com.renault.garage.application.service.GarageService;
+import com.renault.garage.domain.model.TypeCarburant;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -119,6 +120,19 @@ public class GarageController {
     public ResponseEntity<List<GarageResponse>> searchByName(
             @RequestParam String name) {
         List<GarageResponse> garages = garageService.findGaragesByName(name);
+        return ResponseEntity.ok(garages);
+    }
+
+    @GetMapping("/search")
+    @Operation(summary = "Rechercher des garages par carburant et accessoire", 
+               description = "Filtre les garages ayant des véhicules du type de carburant donné et disposant d'un accessoire correspondant au nom fourni")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Liste des garages trouvés")
+    })
+    public ResponseEntity<List<GarageResponse>> searchByFuelAndAccessory(
+            @RequestParam TypeCarburant typeCarburant,
+            @RequestParam String accessoireNom) {
+        List<GarageResponse> garages = garageService.searchByFuelAndAccessoryName(typeCarburant, accessoireNom);
         return ResponseEntity.ok(garages);
     }
 }
